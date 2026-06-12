@@ -117,7 +117,7 @@ fi
 
 # XSOS_ALL_VIEW (str of variables, space-separated)
 #   Controls what content modules to run when -a/--all switch is used
-    : ${XSOS_ALL_VIEW:="bios os kdump cpu intrupt mem disks mpath lspci ethtool softirq bonding ip netdev sysctl ps ss firewall"}
+    : ${XSOS_ALL_VIEW:="bios os kdump cpu intrupt mem disks mpath lspci ethtool softirq bonding ip netdev sysctl ps ss firewall arp"}
 
 # XSOS_DEFAULT_VIEW (str of variables, space-separated)
 #   Controls default content modules, i.e. what to run when none are specififed
