@@ -245,7 +245,7 @@ Content options:"
  -n, --netdev❚show info from /proc/net/dev
  -g, --bonding❚show bonding and teaming info
  -i, --ip❚show info from ip addr (BASH v4+ required)
-     --net❚alias for: --lspci --ethtool --softirq --netdev --bonding --ip
+     --net❚alias for: --lspci --ethtool --softirq --netdev --bonding --ip --arp
  -s, --sysctl❚show important kernel sysctls
  -p, --ps❚inspect running processes via ps
  -S, --ss❚inspect running processes via ss
@@ -423,7 +423,7 @@ _OPT_CHECK() {
 
 # Parse command-line arguments
 PARSE() {
-  unset opts all bios os kdump cpu intrupt mem disks mpath lspci ethtool softirq netdev bonding ip net sysctl ps
+  unset opts all bios os kdump cpu intrupt mem disks mpath lspci ethtool softirq netdev bonding ip net sysctl ps arp
   until [[ $1 == -- ]]; do
     case $1 in
       --scrub)      XSOS_SCRUB_IP_HN=y XSOS_SCRUB_MACADDR=y XSOS_SCRUB_SERIAL=y XSOS_SCRUB_PROXYUSERPASS=y ;;
@@ -466,7 +466,7 @@ PARSE() {
       -F|--firewall)opts=y firewall=y ;;
       -I|--ifcfg)   opts=y ifcfg=y   ;;
       -N|--netstat) opts=y netstat=y ;;
-      --net)        opts=y lspci=y ethtool=y softirq=y netdev=y ip=y firewall=y bonding=y teaming=y ss=y ifcfg=y netstat=y ;;
+      --net)        opts=y lspci=y ethtool=y softirq=y netdev=y ip=y firewall=y bonding=y teaming=y ss=y ifcfg=y netstat=y arp=y ;;
       
       --B)  sfile[B]=$2; shift ;;
       --F)  sfile[F]=$2; shift ;;
@@ -3907,6 +3907,32 @@ NETSTAT(){
   
 }
 
+ARP() {
+  # Local vars:
+  local arp_input_file
+
+  [[ -f $1 ]] && arp_input_file=$1 || arp_input_file=$1/proc/net/arp
+
+  echo -e "${c[H1]}ARP${c[0]}"
+
+  # Check if file exists and is not empty
+  if [[ ! -f "$arp_input_file" ]]; then
+    echo "${XSOS_INDENT_H1}File not found: $arp_input_file" >&2
+    return 1
+  fi
+
+  # Skip header line and format output
+  tail -n+2 "$arp_input_file" | gawk -v indent="$XSOS_INDENT_H1" '
+    BEGIN {
+      printf "%s%-18s %-8s %-8s %-19s %-8s %s\n", indent, "IP address", "HW type", "Flags", "HW address", "Mask", "Device"
+    }
+    {
+      # Fields: IP address, HW type, Flags, HW address, Mask, Device
+      printf "%s%-18s %-8s %-8s %-19s %-8s %s\n", indent, $1, $2, $3, $4, $5, $6
+    }
+  '
+}
+
 #-------------------------------------------------------------------------------
 # BLEH
 # Eventually I'll probably replace all of this with a python loader.
@@ -4016,7 +4042,8 @@ trap "rm -rf $TMPDIR 2>/dev/null" EXIT
     SOS_CHECKFILE firewall "sos_commands/systemd/systemctl_status_--all" && FIREWALL   "$sosroot"
     SOS_CHECKFILE ifcfg   "etc/sysconfig/network-scripts"      && IFCFG     "$sosroot"
     SOS_CHECKFILE netstat "/proc/net/netstat"                  && NETSTAT   "$sosroot"
-    
+    SOS_CHECKFILE arp     "proc/net/arp"                       && ARP       "$sosroot"
+
   # If no SOSREPORT-ROOT provided, run checks against local system
   else
     [[ -n $bios ]]    && COND_RUN dmidecode --require_root
@@ -4041,6 +4068,7 @@ trap "rm -rf $TMPDIR 2>/dev/null" EXIT
     [[ -n $firewall ]]&& FIREWALL
     [[ -n $ifcfg ]]   && IFCFG
     [[ -n $netstat ]] && NETSTAT
+    [[ -n $arp ]]     && ARP
 
   fi
   
